@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Galleria Flickr</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+    }
+
+    #foto-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-around;
+      gap: 10px;
+      padding: 10px;
+    }
+
+    .foto {
+      width: calc(25% - 10px);
+      aspect-ratio: 1 / 1;
+      overflow: hidden;
+    }
+
+    .foto img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s ease;
+    }
+
+    .foto img:hover {
+      transform: scale(1.05);
+    }
+
+    /* Modale */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      display: block;
+      max-width: 90%;
+      max-height: 80%;
+      margin: auto;
+    }
+
+    .close {
+      position: absolute;
+      top: 10px;
+      right: 25px;
+      color: white;
+      font-size: 36px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .modal-prev, .modal-next {
+      position: absolute;
+      top: 50%;
+      font-size: 24px;
+      color: white;
+      padding: 16px;
+      cursor: pointer;
+    }
+
+    .modal-prev {
+      left: 10px;
+    }
+
+    .modal-next {
+      right: 10px;
+    }
+
+    /* Responsività */
+    @media (max-width: 1024px) {
+      .foto {
+        width: calc(50% - 10px);
+      }
+    }
+
+    @media (max-width: 600px) {
+      .foto {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="foto-container">
+    <!-- Le immagini verranno caricate qui -->
+  </div>
+
+  <!-- Modale per visualizzare l'immagine grande -->
+  <div id="myModal" class="modal">
+    <span class="close">&times;</span>
+    <img class="modal-content" id="imgModal">
+    <span class="modal-prev">&#10094;</span>
+    <span class="modal-next">&#10095;</span>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const apiKey = 'ae7389a574ad799ce76de32153d17041';
+      const userId = '78794974@N08';
+      let tags = 'bassista,jazz';
+      const currentUrl = window.location.href;
+  
+      // Logica per determinare i tag in base all'URL
+      if (currentUrl.includes('contrabbasso') || currentUrl.includes('double-bass')) {
+        tags = 'contrabbassista';
+      }
+  
+      const baseUrl = `https://api.flickr.com/services/rest/?method=flickr.photos.search&api_key=${apiKey}&user_id=${userId}&tags=${tags}&tag_mode=all&format=json&nojsoncallback=1`;
+  
+      fetch(baseUrl)
+        .then(res => res.json())
+        .then(data => {
+          if (data.stat !== 'ok' || data.photos.total === 0) {
+            throw new Error('Nessuna foto trovata.');
+          }
+  
+          const totalPages = data.photos.pages;
+          const randomPage = Math.floor(Math.random() * totalPages) + 1;
+          return fetch(`${baseUrl}&page=${randomPage}`);
+        })
+        .then(res => res.json())
+        .then(data => {
+          const photos = data.photos.photo;
+          const fotoRandom = selectRandomPhotos(photos, 8);
+          const fotoContainer = document.getElementById('foto-container');
+  
+          fotoRandom.forEach((photo, index) => {
+            const imageUrlSmall = `https://live.staticflickr.com/${photo.server}/${photo.id}_${photo.secret}_w.jpg`;
+            const imageUrlLarge = `https://live.staticflickr.com/${photo.server}/${photo.id}_${photo.secret}_b.jpg`;
+  
+            const divElement = document.createElement('div');
+            divElement.className = 'foto';
+  
+            const linkElement = document.createElement('a');
+            linkElement.href = "#";
+            linkElement.dataset.index = index;
+  
+            const imgElement = document.createElement('img');
+            imgElement.src = imageUrlSmall;
+            imgElement.alt = `Foto ${index + 1}`;
+            imgElement.loading = 'lazy';
+  
+            linkElement.appendChild(imgElement);
+            divElement.appendChild(linkElement);
+            fotoContainer.appendChild(divElement);
+  
+            linkElement.addEventListener('click', function (e) {
+              e.preventDefault();
+              openModal(index, fotoRandom);
+            });
+          });
+        })
+        .catch(error => console.error('Errore nella richiesta API di Flickr:', error.message));
+  
+      function selectRandomPhotos(array, count) {
+        const shuffled = array.sort(() => 0.5 - Math.random());
+        return shuffled.slice(0, count);
+      }
+  
+      function openModal(index, fotos) {
+        const modal = document.getElementById("myModal");
+        const modalImg = document.getElementById("imgModal");
+        const prevBtn = document.querySelector(".modal-prev");
+        const nextBtn = document.querySelector(".modal-next");
+  
+        modal.style.display = "block";
+        modalImg.src = `https://live.staticflickr.com/${fotos[index].server}/${fotos[index].id}_${fotos[index].secret}_b.jpg`;
+  
+        prevBtn.onclick = function () {
+          index = (index - 1 + fotos.length) % fotos.length;
+          modalImg.src = `https://live.staticflickr.com/${fotos[index].server}/${fotos[index].id}_${fotos[index].secret}_b.jpg`;
+        };
+  
+        nextBtn.onclick = function () {
+          index = (index + 1) % fotos.length;
+          modalImg.src = `https://live.staticflickr.com/${fotos[index].server}/${fotos[index].id}_${fotos[index].secret}_b.jpg`;
+        };
+  
+        const closeBtn = document.querySelector(".close");
+        closeBtn.onclick = function () {
+          modal.style.display = "none";
+        };
+      }
+    });
+  </script>
+  
+
+</body>
+</html>
